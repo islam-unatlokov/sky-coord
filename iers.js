@@ -1,5 +1,5 @@
-window.IERS_DATA = {
-  "updated_at": "2026-09-07T02:00:56.062740+00:00",
+export const IERS_DATA = {
+  "updated_at": "2026-09-07T20:51:53.528927+00:00",
   "data": {
     "41684": {
       "dut1": 0.8084178,
