@@ -1,7 +1,7 @@
 import * as Astronomy from 'https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/+esm';
 import { IERS_DATA } from 'https://cdn.jsdelivr.net/gh/islam-unatlokov/sky-coord@main/iers.js';
 
-console.log(IERS_DATA.updated_at);
+console.log(`IERS data updated at: ${IERS_DATA.updated_at}`);
 
 const DEG2RAD = Math.PI / 180.0;
 const RAD2DEG = 180.0 / Math.PI;

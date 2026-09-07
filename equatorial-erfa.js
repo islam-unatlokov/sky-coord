@@ -1,4 +1,7 @@
 import loadErfa from './erfa.js';
+import { IERS_DATA } from 'https://cdn.jsdelivr.net/gh/islam-unatlokov/sky-coord@main/iers.js';
+
+console.log(`IERS data updated at: ${IERS_DATA.updated_at}`);
 
 const PI = Math.PI;
 const DEG2RAD = PI / 180.0;
@@ -17,15 +20,15 @@ let eraAtoc13 = null;
  * Loads IERS Bulletin A table for UT1-UTC and polar motion corrections.
  */
 export async function loadIERSData() {
-  if (!window.IERS_DATA) {
-    throw new Error('[IERS Error] Could not find "window.IERS_DATA". Ensure iers.js is loaded in index.html.');
+  if (!IERS_DATA) {
+    throw new Error('[IERS Error] Could not find "IERS_DATA". Ensure iers.js is loaded in index.html.');
   }
 
-  if (!window.IERS_DATA.data) {
-    throw new Error('[IERS Error] Invalid format in "window.IERS_DATA". Missing "data" key.');
+  if (!IERS_DATA.data) {
+    throw new Error('[IERS Error] Invalid format in "IERS_DATA". Missing "data" key.');
   }
 
-  iersData = window.IERS_DATA.data;
+  iersData = IERS_DATA.data;
   // return iersData;
 }
 
