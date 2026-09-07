@@ -17,7 +17,6 @@ jobs:
 
       - name: Download latest assets from GitVerse
         run: |
-          # Fetch raw assets directly into the root directory
           curl -fL "https://bno-inr-ras.gitverse.site/sky-coord-transforms/scripts/iers.js" -o iers.js
           curl -fL "https://gitverse.ru/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-astronomy-engine/equatorial-astronomy-engine.js" -o equatorial-astronomy-engine.js
           curl -fL "https://gitverse.ru/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa/equatorial-erfa.js" -o equatorial-erfa.js
@@ -29,7 +28,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add iers.js equatorial-astronomy-engine.js equatorial-erfa.js erfa.js erfa.wasm
-          
+
           if git diff --staged --quiet; then
             echo "No changes detected."
           else
