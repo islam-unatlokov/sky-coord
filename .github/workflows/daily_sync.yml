@@ -18,10 +18,10 @@ jobs:
       - name: Download latest assets from GitVerse
         run: |
           curl -fL "https://bno-inr-ras.gitverse.site/sky-coord-transforms/scripts/iers.js" -o iers.js
-          curl -fL "https://gitverse.ru/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-astronomy-engine/equatorial-astronomy-engine.js" -o equatorial-astronomy-engine.js
-          curl -fL "https://gitverse.ru/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa/equatorial-erfa.js" -o equatorial-erfa.js
-          curl -fL "https://gitverse.ru/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa/erfa.js" -o erfa.js
-          curl -fL "https://gitverse.ru/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa/erfa.wasm" -o erfa.wasm
+          curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-astronomy-engine%2Fequatorial-astronomy-engine.js" -o equatorial-astronomy-engine.js
+          curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa%2Fequatorial-erfa.js" -o equatorial-erfa.js
+          curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa%2Ferfa.js" -o erfa.js
+          curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa%2Ferfa.wasm" -o erfa.wasm
 
       - name: Commit and Push Changes
         run: |
