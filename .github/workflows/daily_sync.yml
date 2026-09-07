@@ -23,7 +23,7 @@ jobs:
           curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa%2Ferfa.js" -o erfa.js
           curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa%2Ferfa.wasm" -o erfa.wasm
 
-      - name: Commit and Push Changes
+      - name: Commit, Push, and Purge CDN Cache
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -34,4 +34,10 @@ jobs:
           else
             git commit -m "chore: daily update of astronomical assets [$(date +'%Y-%m-%d')]"
             git push
+
+            # Instantly invalidate jsDelivr edge caches for all 5 files
+            echo "Purging jsDelivr CDN cache..."
+            for file in iers.js equatorial-astronomy-engine.js equatorial-erfa.js erfa.js erfa.wasm; do
+              curl -s "https://purge.jsdelivr.net/gh/islam-unatlokov/sky-coord@main/$file"
+            done
           fi
