@@ -2,8 +2,8 @@ name: Sync Assets from GitVerse
 
 on:
   schedule:
-    - cron: '15 2 * * *'  # Runs daily at 02:15 UTC
-  workflow_dispatch:      # Enables manual trigger button in GitHub UI
+    - cron: '15 2 * * *'
+  workflow_dispatch:
 
 jobs:
   sync:
@@ -31,13 +31,55 @@ jobs:
 
           if git diff --staged --quiet; then
             echo "No changes detected."
-          else
-            git commit -m "chore: daily update of astronomical assets [$(date +'%Y-%m-%d')]"
-            git push
-
-            # Instantly invalidate jsDelivr edge caches for all 5 files
-            echo "Purging jsDelivr CDN cache..."
-            for file in iers.js equatorial-astronomy-engine.js equatorial-erfa.js erfa.js erfa.wasm; do
-              curl -s "https://purge.jsdelivr.net/gh/islam-unatlokov/sky-coord@main/$file"
-            done
+            exit 0
           fi
+
+          git commit -m "chore: daily update of astronomical assets [$(date +'%Y-%m-%d')]"
+          git push
+
+          FILES=("iers.js" "equatorial-astronomy-engine.js" "equatorial-erfa.js" "erfa.js" "erfa.wasm")
+          REPO="islam-unatlokov/sky-coord"
+          BRANCH="main"
+
+          echo "Purging jsDelivr cache..."
+          for file in "${FILES[@]}"; do
+            url="https://purge.jsdelivr.net/gh/$REPO@$BRANCH/$file"
+            echo "Purging $url"
+            success=false
+            for attempt in 1 2 3; do
+              response=$(curl -f -s "$url")
+              if echo "$response" | grep -q '"status":"finished"'; then
+                echo "Purge succeeded for $file"
+                success=true
+                break
+              else
+                echo "Attempt $attempt failed, retrying..."
+                sleep 5
+              fi
+            done
+            if [ "$success" = false ]; then
+              echo "ERROR: Purge failed for $file"
+              exit 1
+            fi
+          done
+
+          echo "Verifying CDN content..."
+          for file in "${FILES[@]}"; do
+            cdn_url="https://cdn.jsdelivr.net/gh/$REPO@$BRANCH/$file"
+            local_hash=$(sha256sum "$file" | cut -d' ' -f1)
+            for attempt in 1 2 3 4 5; do
+              cdn_hash=$(curl -sL "$cdn_url" | sha256sum | cut -d' ' -f1)
+              if [ "$local_hash" = "$cdn_hash" ]; then
+                echo "CDN matches for $file"
+                break
+              else
+                echo "CDN not yet updated for $file, waiting 5s..."
+                sleep 5
+              fi
+            done
+            if [ "$local_hash" != "$cdn_hash" ]; then
+              echo "WARNING: CDN still not updated for $file after verification"
+              # You can choose to fail here or just warn
+              # exit 1
+            fi
+          done
