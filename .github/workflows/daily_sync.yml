@@ -2,8 +2,8 @@ name: Sync Assets from GitVerse
 
 on:
   schedule:
-    - cron: '15 2 * * *'
-  workflow_dispatch:
+    - cron: '15 2 * * *'   # daily at 02:15 UTC
+  workflow_dispatch:        # manual trigger
 
 jobs:
   sync:
@@ -15,13 +15,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Debug purge API
+      - name: Download latest assets from GitVerse
         run: |
-          url="https://purge.jsdelivr.net/gh/islam-unatlokov/sky-coord@main/iers.js"
-          echo "Testing URL: $url"
-          response=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" "$url")
-          echo "Full response:"
-          echo "$response"
+          curl -fL "https://bno-inr-ras.gitverse.site/sky-coord-transforms/scripts/iers.js" -o iers.js
           curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-astronomy-engine%2Fequatorial-astronomy-engine.js" -o equatorial-astronomy-engine.js
           curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa%2Fequatorial-erfa.js" -o equatorial-erfa.js
           curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa%2Ferfa.js" -o erfa.js
@@ -41,49 +37,71 @@ jobs:
           git commit -m "chore: daily update of astronomical assets [$(date +'%Y-%m-%d')]"
           git push
 
+          # ============ ROBUST PURGE START ============
           FILES=("iers.js" "equatorial-astronomy-engine.js" "equatorial-erfa.js" "erfa.js" "erfa.wasm")
           REPO="islam-unatlokov/sky-coord"
           BRANCH="main"
+          MAX_ATTEMPTS=5
+          BASE_SLEEP=5
 
           echo "Purging jsDelivr cache..."
           for file in "${FILES[@]}"; do
             url="https://purge.jsdelivr.net/gh/$REPO@$BRANCH/$file"
             echo "Purging $url"
             success=false
-            for attempt in 1 2 3; do
-              response=$(curl -f -s "$url")
-              if echo "$response" | grep -q '"status":"finished"'; then
-                echo "Purge succeeded for $file"
-                success=true
-                break
+
+            for attempt in $(seq 1 $MAX_ATTEMPTS); do
+              # Capture HTTP status code and response body separately
+              response=$(curl -sS -w "\n%{http_code}" "$url")
+              http_code=$(echo "$response" | tail -n1)
+              body=$(echo "$response" | sed '$d')
+
+              echo "Attempt $attempt: HTTP $http_code"
+              if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+                if echo "$body" | grep -q '"status":"finished"'; then
+                  echo "✅ Purge finished for $file"
+                  success=true
+                  break
+                elif echo "$body" | grep -q '"status":"in-progress"'; then
+                  echo "⏳ Purge in progress, waiting..."
+                  sleep $((BASE_SLEEP * attempt))   # exponential backoff
+                else
+                  echo "⚠️ Unexpected response: $body"
+                  sleep $BASE_SLEEP
+                fi
               else
-                echo "Attempt $attempt failed, retrying..."
-                sleep 5
+                echo "❌ HTTP error (code $http_code), body: $body"
+                sleep $BASE_SLEEP
               fi
             done
+
             if [ "$success" = false ]; then
-              echo "ERROR: Purge failed for $file"
+              echo "ERROR: Failed to purge $file after $MAX_ATTEMPTS attempts"
               exit 1
             fi
           done
+          # ============ ROBUST PURGE END ============
 
+          # ============ VERIFICATION START ============
           echo "Verifying CDN content..."
           for file in "${FILES[@]}"; do
             cdn_url="https://cdn.jsdelivr.net/gh/$REPO@$BRANCH/$file"
             local_hash=$(sha256sum "$file" | cut -d' ' -f1)
+            echo "Checking $file..."
             for attempt in 1 2 3 4 5; do
               cdn_hash=$(curl -sL "$cdn_url" | sha256sum | cut -d' ' -f1)
               if [ "$local_hash" = "$cdn_hash" ]; then
-                echo "CDN matches for $file"
+                echo "✅ CDN matches for $file"
                 break
               else
-                echo "CDN not yet updated for $file, waiting 5s..."
-                sleep 5
+                echo "⏳ CDN not yet updated for $file, waiting 10s..."
+                sleep 10
               fi
             done
             if [ "$local_hash" != "$cdn_hash" ]; then
               echo "WARNING: CDN still not updated for $file after verification"
-              # You can choose to fail here or just warn
+              # You can choose to fail here, but I left it as a warning
               # exit 1
             fi
           done
+          # ============ VERIFICATION END ============
