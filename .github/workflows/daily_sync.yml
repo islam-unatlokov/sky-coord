@@ -2,8 +2,8 @@ name: Sync Assets from GitVerse
 
 on:
   schedule:
-    - cron: '15 2 * * *'
-  workflow_dispatch:
+    - cron: '15 2 * * *'   # daily at 02:15 UTC
+  workflow_dispatch:        # manual trigger
 
 jobs:
   sync:
@@ -23,7 +23,7 @@ jobs:
           curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa%2Ferfa.js" -o erfa.js
           curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa%2Ferfa.wasm" -o erfa.wasm
 
-      - name: Commit and Push Changes
+      - name: Commit, Push, and Purge CDN Cache
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -37,16 +37,6 @@ jobs:
           git commit -m "chore: daily update of astronomical assets [$(date +'%Y-%m-%d')]"
           git push
 
-      - name: Debug purge API
-        run: |
-          url="https://purge.jsdelivr.net/gh/islam-unatlokov/sky-coord@main/iers.js"
-          echo "Testing URL: $url"
-          response=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" "$url")
-          echo "Full response:"
-          echo "$response"
-
-      - name: Purge jsDelivr cache
-        run: |
           FILES=("iers.js" "equatorial-astronomy-engine.js" "equatorial-erfa.js" "erfa.js" "erfa.wasm")
           REPO="islam-unatlokov/sky-coord"
           BRANCH="main"
@@ -58,7 +48,8 @@ jobs:
             success=false
             for attempt in 1 2 3; do
               response=$(curl -f -s "$url")
-              if echo "$response" | grep -q '"status":"finished"'; then
+              # ✅ FIXED: allow optional spaces around the colon in "status": "finished"
+              if echo "$response" | grep -q '"status": *"finished"'; then
                 echo "Purge succeeded for $file"
                 success=true
                 break
@@ -71,13 +62,9 @@ jobs:
               echo "ERROR: Purge failed for $file"
               exit 1
             fi
+            # Small delay between files to respect jsDelivr throttling
+            sleep 2
           done
-
-      - name: Verify CDN content
-        run: |
-          FILES=("iers.js" "equatorial-astronomy-engine.js" "equatorial-erfa.js" "erfa.js" "erfa.wasm")
-          REPO="islam-unatlokov/sky-coord"
-          BRANCH="main"
 
           echo "Verifying CDN content..."
           for file in "${FILES[@]}"; do
@@ -95,5 +82,7 @@ jobs:
             done
             if [ "$local_hash" != "$cdn_hash" ]; then
               echo "WARNING: CDN still not updated for $file after verification"
+              # You can choose to fail here or just warn
+              # exit 1
             fi
           done
