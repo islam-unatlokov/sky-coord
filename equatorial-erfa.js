@@ -95,10 +95,11 @@ export async function initErfa() {
   await loadIERSData();
 }
 
+const mode = 'P' // 'P' - Precise, anything else - Simplified
 /**
  * Transforms topocentric horizontal coordinates to equatorial ICRS using ERFA.
  */
-export function getEquatorialERFA(mode, jd, lat_deg, lon_deg, elevation, zen_deg, az_deg) {
+export function getEquatorialERFA(lat_deg, lon_deg, elevation, zen_deg, az_deg, jd) {
   if (!ERFA) {
     throw new Error("[ERFA Error] Module not initialized. Call 'await initErfa()' first.");
   }
