@@ -15,19 +15,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Debug purge API
+      - name: Download latest assets from GitVerse
         run: |
-          url="https://purge.jsdelivr.net/gh/islam-unatlokov/sky-coord@main/iers.js"
-          echo "Testing URL: $url"
-          response=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" "$url")
-          echo "Full response:"
-          echo "$response"
+          curl -fL "https://bno-inr-ras.gitverse.site/sky-coord-transforms/scripts/iers.js" -o iers.js
           curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-astronomy-engine%2Fequatorial-astronomy-engine.js" -o equatorial-astronomy-engine.js
           curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa%2Fequatorial-erfa.js" -o equatorial-erfa.js
           curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa%2Ferfa.js" -o erfa.js
           curl -fL "https://gitverse.ru/api/repos/bno-inr-ras/sky-coord-transforms/raw/branch/master/js-erfa%2Ferfa.wasm" -o erfa.wasm
 
-      - name: Commit, Push, and Purge CDN Cache
+      - name: Commit and Push Changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -41,6 +37,16 @@ jobs:
           git commit -m "chore: daily update of astronomical assets [$(date +'%Y-%m-%d')]"
           git push
 
+      - name: Debug purge API
+        run: |
+          url="https://purge.jsdelivr.net/gh/islam-unatlokov/sky-coord@main/iers.js"
+          echo "Testing URL: $url"
+          response=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" "$url")
+          echo "Full response:"
+          echo "$response"
+
+      - name: Purge jsDelivr cache
+        run: |
           FILES=("iers.js" "equatorial-astronomy-engine.js" "equatorial-erfa.js" "erfa.js" "erfa.wasm")
           REPO="islam-unatlokov/sky-coord"
           BRANCH="main"
@@ -67,6 +73,12 @@ jobs:
             fi
           done
 
+      - name: Verify CDN content
+        run: |
+          FILES=("iers.js" "equatorial-astronomy-engine.js" "equatorial-erfa.js" "erfa.js" "erfa.wasm")
+          REPO="islam-unatlokov/sky-coord"
+          BRANCH="main"
+
           echo "Verifying CDN content..."
           for file in "${FILES[@]}"; do
             cdn_url="https://cdn.jsdelivr.net/gh/$REPO@$BRANCH/$file"
@@ -83,7 +95,5 @@ jobs:
             done
             if [ "$local_hash" != "$cdn_hash" ]; then
               echo "WARNING: CDN still not updated for $file after verification"
-              # You can choose to fail here or just warn
-              # exit 1
             fi
           done
